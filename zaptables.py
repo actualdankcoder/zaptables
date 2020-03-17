@@ -1,7 +1,7 @@
 from PIL import Image, ImageDraw, ImageFont
 import random
 class NewObject:
-    def __init__(self, name="OBJECT"+str(random.randint(10000,99999)),text="OBJECT",cover='rectangle', row=1,column=1, bgcolor=(255,255,255),textcolor=(0,0,0),font=('cg.ttf', 20)):
+    def __init__(self, name="OBJECT"+str(random.randint(10000,99999)),text="OBJECT",cover='rectangle', row=1,column=1, bgcolor=(255,255,255),textcolor=(0,0,0),font=('cg.ttf', 20),emptyelement=False):
         self.row=row
         self.column=column
         self.name=name
@@ -9,10 +9,11 @@ class NewObject:
         self.bgcolor=bgcolor
         self.textcolor=textcolor
         self.font=ImageFont.truetype(font[0],font[1])
-        self.cover=cover
+        self.cover=cover.lower()
         self.connections=[]
         self.coordinates=()
         self.box_coordinates=()
+        self.emptyelement=emptyelement
 class Chart:
     def __init__(self, width, height,background=(255,255,255)):
         self.width=width
@@ -25,6 +26,7 @@ class Chart:
         self.box_outline=(0,0,0)
         self.line_color=(0,0,0)
         self.line_thickness=3
+        self.IGNORE_INCORRECT_DECLARATION=False
     def connect_objects(self,obj1,obj2):
         if isinstance(obj1, NewObject) and isinstance(obj2, NewObject):
             if obj1.name in self.tree[0] and obj2.name in self.tree[0]:
@@ -41,12 +43,13 @@ class Chart:
                     y1=int((self.tree[1][obj].box_coordinates[1]+self.tree[1][obj].box_coordinates[3])/2)
                     x2=self.tree[1][c].box_coordinates[0]
                     y2=int((self.tree[1][c].box_coordinates[1]+self.tree[1][c].box_coordinates[3])/2)  
+                    self.draw.line((x1,y1,x2,y2), fill=self.line_color, width=self.line_thickness)  
                 elif self.tree[1][obj].coordinates[0] > self.tree[1][c].coordinates[0]: 
                     x1=self.tree[1][obj].box_coordinates[0]
                     y1=int((self.tree[1][obj].box_coordinates[1]+self.tree[1][obj].box_coordinates[3])/2)
                     x2=self.tree[1][c].box_coordinates[2]
                     y2=int((self.tree[1][c].box_coordinates[1]+self.tree[1][c].box_coordinates[3])/2)  
-                self.draw.line((x1,y1,x2,y2), fill=self.line_color, width=self.line_thickness)       
+                    self.draw.line((x1,y1,x2,y2), fill=self.line_color, width=self.line_thickness)       
     def __length_by_chars(self, obj):
         w=0
         for c in self.tree[1][obj].text:
@@ -76,22 +79,33 @@ class Chart:
         for n in sorted(self.__object_columns):
             ncolumn.append(n)
         if not self.__check_is_consecutive(nrow) or not self.__check_is_consecutive(ncolumn):
-            raise Errors.ImproperLayerDeclaration  
+            if not self.IGNORE_INCORRECT_DECLARATION:
+                raise Errors.ImproperLayerDeclaration  
         crds=[]
         for obj in self.tree[0]:
-            if not (self.tree[1][obj].column, self.tree[1][obj].row) in crds:
-                crds.append((self.tree[1][obj].column, self.tree[1][obj].row))
+            if not (self.tree[1][obj].row,self.tree[1][obj].column) in crds:
+                crds.append((self.tree[1][obj].row, self.tree[1][obj].column))
             else:
                 raise Errors.ClashingCoordinates
-    def __recognize_and_draw_shape(self, obj, iterator, objects):
+    def __recognize_and_draw_shape(self, obj, iterator, objects, iterator2, objects2):
         if self.tree[1][obj].cover=='rectangle':
             #self.draw.rectangle(xy=(int(iterator/(objects+1)*self.width)-self.tree[1][obj].font.getsize(self.tree[1][obj].text)-10, int(self.height/2)-4,int(iterator/(objects+1)*self.width)+self.tree[1][obj].font.getsize(self.tree[1][obj].text)[0]+10,int(self.height/2)+self.tree[1][obj].font.getsize(self.tree[1][obj].text)[1]+4),outline="black")
             x1=int((iterator/(objects+1))*self.width)-int(self.width/(self.width/40))
             x2=int((iterator/(objects+1))*self.width)+self.tree[1][obj].font.getsize(self.tree[1][obj].text)[0]
-            y1=int(self.height/2)-self.height/(self.height/10)
-            y2=int(self.height/2)+self.tree[1][obj].font.getsize(self.tree[1][obj].text)[1]+self.height/(self.height/10)
+            y1=int((iterator2/(objects2+1))*self.height)-self.height/(self.height/10)
+            y2=int((iterator2/(objects2+1))*self.height)+self.tree[1][obj].font.getsize(self.tree[1][obj].text)[1]+self.height/(self.height/10)
             self.tree[1][obj].box_coordinates=(x1,y1,x2,y2)
             self.draw.rectangle(xy=(x1,y1,x2,y2),outline=self.box_outline, fill=self.tree[1][obj].bgcolor)
+        elif self.tree[1][obj].cover in ['ellipse','circle']:
+            #self.draw.rectangle(xy=(int(iterator/(objects+1)*self.width)-self.tree[1][obj].font.getsize(self.tree[1][obj].text)-10, int(self.height/2)-4,int(iterator/(objects+1)*self.width)+self.tree[1][obj].font.getsize(self.tree[1][obj].text)[0]+10,int(self.height/2)+self.tree[1][obj].font.getsize(self.tree[1][obj].text)[1]+4),outline="black")
+            x1=int((iterator/(objects+1))*self.width)-int(self.width/(self.width/40))
+            x2=int((iterator/(objects+1))*self.width)+self.tree[1][obj].font.getsize(self.tree[1][obj].text)[0]
+            y1=int((iterator2/(objects2+1))*self.height)-self.height/(self.height/10)
+            y2=int((iterator2/(objects2+1))*self.height)+self.tree[1][obj].font.getsize(self.tree[1][obj].text)[1]+self.height/(self.height/10)
+            self.tree[1][obj].box_coordinates=(x1,y1,x2,y2)
+            self.draw.ellipse(xy=(x1,y1,x2,y2),outline=self.box_outline, fill=self.tree[1][obj].bgcolor)            
+        else:
+            raise Errors.InvalidShape
     def add_object(self, obj):
         if isinstance(obj, NewObject):
             self.tree[0][obj.name]={}
@@ -99,18 +113,18 @@ class Chart:
         else:
             raise Errors.InvalidObject
     def render(self):
-        objects=len(self.tree[0])
-        iterator=0
         self.__organize_by_rows_and_colums()
         self.__verify_rows_and_columns()
         print(self.__object_rows)
         for obj in self.tree[0]:
-            iterator+=1
-            self.tree[1][obj].coordinates=(int(int(float(iterator/(objects+1))*self.width)-int(self.width/((1/20)*self.width))), int((1/2)*self.height))
-            self.__recognize_and_draw_shape(obj, iterator, objects)       
-            self.draw.text(self.tree[1][obj].coordinates, self.tree[1][obj].text, self.tree[1][obj].textcolor, font=self.tree[1][obj].font)
+            if not self.tree[1][obj].emptyelement:
+                #self.tree[1][obj].coordinates=(int(int(float(iterator/(objects+1))*self.width)-int(self.width/((1/20)*self.width))), int((1/2)*self.height))
+                self.tree[1][obj].coordinates=((self.tree[1][obj].row/(len(self.__object_rows)+1)*self.width-int(self.width/((1/20)*self.width)), (self.tree[1][obj].column/(len(self.__object_columns)+1))*self.height))
+                self.__recognize_and_draw_shape(obj, self.tree[1][obj].row, len(self.__object_rows), self.tree[1][obj].column, len(self.__object_columns))       
+                self.draw.text(self.tree[1][obj].coordinates, self.tree[1][obj].text, self.tree[1][obj].textcolor, font=self.tree[1][obj].font)
         for obj in self.tree[0]:
-            self.__connect_objs(obj)
+            if not self.tree[1][obj].emptyelement:
+                self.__connect_objs(obj)
 
                     
         return self.canvas
@@ -140,3 +154,10 @@ class Errors:
             self.message=message
         def __str__(self):
             return str(self.message)
+    class InvalidShape(Exception):
+        """Raised when shape of the outer box is not of a supported type"""
+        def __init__(self, message="Shape of the outer box is not of a supported type"):
+            self.message=message
+        def __str__(self):
+            return str(self.message)
+        
